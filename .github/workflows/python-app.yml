@@ -1,0 +1,79 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python application
+
+on:
+  workflow_dispatch:
+    inputs:
+      onefile:
+        description: '📦 Build as a single executable file (--onefile)'
+        required: true
+        type: boolean
+        default: true
+      noupx:
+        description: '🚀 Disable UPX compression for faster startup (--noupx)'
+        required: true
+        type: boolean
+        default: false
+      noconsole:
+        description: '🙈 Hide the console window (GUI mode)'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-2025, macos-15]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5 # Updated to the latest version
+      with:
+        python-version: "3.13" # Using 3.13 is more flexible than a specific patch
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build executable
+      run: |
+        # Start with the base command
+        $CMD = "pyinstaller --name Wattpad_Downloader --paths src src/main.py"
+
+        # Conditionally add --onefile flag
+        if ('${{ github.event.inputs.onefile }}' -eq 'true') {
+          $CMD += " --onefile"
+        }
+
+        # Conditionally add --noupx flag
+        if ('${{ github.event.inputs.noupx }}' -eq 'true') {
+          $CMD += " --noupx"
+        }
+
+        # Conditionally add --windowed flag to hide the console
+        if ('${{ github.event.inputs.noconsole }}' -eq 'true') {
+          $CMD += " --windowed"
+        }
+
+        # Print and run the final command
+        Write-Host "Executing: $CMD"
+        Invoke-Expression $CMD
+      shell: pwsh
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with: 
+        name: ${{ matrix.os }}-dist
+        path: dist
+        if-no-files-found: error
+        compression-level: 9
